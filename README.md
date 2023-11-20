@@ -592,3 +592,206 @@ Test pada node Client dengan `lynx localhost` tetapi harus melakukan fix IP manu
 ## Soal 13
 > Semua data yang diperlukan, diatur pada Denken dan harus dapat diakses oleh Frieren, Flamme, dan Fern
 ### Denken (Database Server)
+1. Install depedencies dan Pastikan DNS Server sudah berjalan 
+```bash
+echo 'nameserver 192.235.1.2' > /etc/resolv.conf
+apt-get update
+apt-get install mariadb-server -y
+service mysql start
+```
+2. Melakukan perubahan pada file `/etc/mysql/mariadb.conf.d/50-server.cnf` menjadi `0.0.0.0`
+3. Melakukan update konfig file `/etc/mysql/my.cnf`
+```
+# This group is read both by the client and the server
+# use it for options that affect everything
+[client-server]
+
+# Import all .cnf files from configuration directory
+!includedir /etc/mysql/conf.d/
+!includedir /etc/mysql/mariadb.conf.d/
+
+# Options affecting the MySQL server (mysqld)
+[mysqld]
+skip-networking=0
+skip-bind-address
+```
+4. Melakukan `service mysql restart`
+5. Melakukan configurasi didalam file mariadb `/etc/mysql/mariadb.conf.d`
+```
+mysql -u root -p
+
+CREATE USER 'kelompokit04'@'%' IDENTIFIED BY 'passwordit04';
+CREATE USER 'kelompokit04'@'localhost' IDENTIFIED BY 'passwordit04';
+CREATE DATABASE dbkelompokit04;
+GRANT ALL PRIVILEGES ON *.* TO 'kelompokit04'@'%';
+GRANT ALL PRIVILEGES ON *.* TO 'kelompokit04'@'localhost';
+FLUSH PRIVILEGES;
+```
+### Frieren, Flamme, dan Fern (Laravel Worker)
+1. Install depedencies dan Pastikan DNS Server sudah berjalan 
+```bash
+echo 'nameserver 192.235.1.2' > /etc/resolv.conf
+apt-get update
+apt-get install lynx -y
+apt-get install mariadb-client -y
+apt-get install -y lsb-release ca-certificates apt-transport-https software-properties-common gnupg2
+curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
+sh -c 'echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
+apt-get update
+apt-get install php8.0-mbstring php8.0-xml php8.0-cli   php8.0-common php8.0-intl php8.0-opcache php8.0-readline php8.0-mysql php8.0-fpm php8.0-curl unzip wget -y
+apt-get install nginx -y
+
+service nginx start
+service php8.0-fpm start
+```
+### Result
+Test pada node Laravel Worker dengan `mariadb --host=192.235.2.1 --port=3306 --user=kelompokit04 --password=passwordit04 dbkelompokit04 -e "SHOW DATABASES;"` 
+
+![Screenshot 2023-11-20 210557](https://github.com/asxklm/Jarkom-Modul-3-IT04-2023/assets/113827418/29931586-2278-4222-86a8-163e40aae567)
+
+
+## Soal 14
+> Frieren, Flamme, dan Fern memiliki Riegel Channel sesuai dengan quest guide berikut. Jangan lupa melakukan instalasi PHP8.0 dan Composer
+### DFrieren, Flamme, dan Fern (Laravel Worker)
+1. Install depedencies composer dan git 
+```bash
+wget https://getcomposer.org/download/2.0.13/composer.phar
+chmod +x composer.phar
+mv composer.phar /usr/local/bin/composer
+
+apt-get install git -y
+cd /var/www && git clone https://github.com/martuafernando/laravel-praktikum-jarkom
+cd /var/www/laravel-praktikum-jarkom && composer update
+```
+2. Melakukan salin dan configurasi laravel file nginx `/var/www/laravel-praktikum-jarkom/.env`
+```
+APP_NAME=Laravel
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://localhost
+
+LOG_CHANNEL=stack
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+DB_CONNECTION=mysql
+DB_HOST=192.235.2.1
+DB_PORT=3306
+DB_DATABASE=dbkelompokit04
+DB_USERNAME=kelompokit04
+DB_PASSWORD=passwordit04
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=file
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
+MEMCACHED_HOST=127.0.0.1
+
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=smtp
+MAIL_HOST=mailpit
+MAIL_PORT=1025
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="${APP_NAME}"
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+
+PUSHER_APP_ID=
+PUSHER_APP_KEY=
+PUSHER_APP_SECRET=
+PUSHER_HOST=
+PUSHER_PORT=443
+PUSHER_SCHEME=https
+PUSHER_APP_CLUSTER=mt1
+
+VITE_PUSHER_APP_KEY="${PUSHER_APP_KEY}"
+VITE_PUSHER_HOST="${PUSHER_HOST}"
+VITE_PUSHER_PORT="${PUSHER_PORT}"
+VITE_PUSHER_SCHEME="${PUSHER_SCHEME}"
+VITE_PUSHER_APP_CLUSTER="${PUSHER_APP_CLUSTER}"'
+```
+3. Melakukan querry php dalam direktori laravel
+```
+cd /var/www/laravel-praktikum-jarkom && php artisan key:generate
+cd /var/www/laravel-praktikum-jarkom && php artisan config:cache
+cd /var/www/laravel-praktikum-jarkom && php artisan migrate
+cd /var/www/laravel-praktikum-jarkom && php artisan db:seed
+cd /var/www/laravel-praktikum-jarkom && php artisan storage:link
+cd /var/www/laravel-praktikum-jarkom && php artisan jwt:secret
+cd /var/www/laravel-praktikum-jarkom && php artisan config:clear
+chown -R www-data.www-data /var/www/laravel-praktikum-jarkom/storage
+```
+4. Melakukan perubahan konfig pada file `/etc/nginx/sites-available/laravel-worker`
+```
+server {
+    listen 8001; 
+
+    root /var/www/laravel-praktikum-jarkom/public;
+
+    index index.php index.html index.htm;
+    server_name _;
+
+    location / {
+            try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    # pass PHP scripts to FastCGI server
+    location ~ \.php$ {
+      include snippets/fastcgi-php.conf;
+      fastcgi_pass unix:/var/run/php/php8.0-fpm.sock;
+    }
+
+    location ~ /\.ht {
+            deny all;
+    }
+
+    error_log /var/log/nginx/implementasi_error.log;
+    access_log /var/log/nginx/implementasi_access.log;
+}
+```
+5. Melakukan `service nginx restart` & `service php8.0-fpm restart`
+
+### Result
+Test pada node client dengan `lynx localhost:8001` atau port laravel worker lainnya
+
+![Screenshot 2023-11-20 211519](https://github.com/asxklm/Jarkom-Modul-3-IT04-2023/assets/113827418/2e987bb7-136d-4fa0-b810-b887f09a6e25)
+
+## Soal 15
+> Riegel Channel memiliki beberapa endpoint yang harus ditesting sebanyak 100 request dengan 10 request/second. Tambahkan response dan hasil testing pada grimoire POST /auth/register
+### Result
+Test pada node client dengan `ab -n 100 -c 10 -p register.json -T application/json http://192.235.4.1:8001/api/auth/register` 
+
+![no8gh](https://github.com/asxklm/Jarkom-Modul-3-IT04-2023/assets/113827418/8ad1cfd8-3e64-4f7a-8637-f46e3d4923de)
+
+
+## Soal 16
+> Riegel Channel memiliki beberapa endpoint yang harus ditesting sebanyak 100 request dengan 10 request/second. Tambahkan response dan hasil testing pada grimoire POST /auth/login 
+### Result
+Test pada node client dengan `ab -n 100 -c 10 -p register.json -T application/json http://192.235.4.1:8001/api/auth/login` 
+
+![no8lc](https://github.com/asxklm/Jarkom-Modul-3-IT04-2023/assets/113827418/88f89c73-304f-4d7d-b5b2-203e981e6a7c)
+
+
+## Soal 17
+> Riegel Channel memiliki beberapa endpoint yang harus ditesting sebanyak 100 request dengan 10 request/second. Tambahkan response dan hasil testing pada grimoire GET /me
+### Result
+Test pada node client dengan 
+1. `curl -X POST -H "Content-Type: application/json" -d @login.json http://192.235.4.1:8001/api/auth/login > login_output.txt`
+2. `token=$(cat login_output.txt | jq -r '.token')`
+3. `ab -n 100 -c 10 -H "Authorization: Bearer $token" http://192.235.4.1:8001/api/me`
+
+![no9w3](https://github.com/asxklm/Jarkom-Modul-3-IT04-2023/assets/113827418/31726063-c7db-4cd6-bec3-f7300232d61c)
